@@ -1,0 +1,8 @@
+{
+  "name": "crew",
+  "version": "0.1.0",
+  "description": "Nối máy dev với crew-hub: ghép máy bằng mã từ Slack, xem và nhận task, mở worktree; phiên Claude Code trong worktree crew hiện trên canvas.",
+  "author": {
+    "name": "mor-duongmh"
+  }
+}
