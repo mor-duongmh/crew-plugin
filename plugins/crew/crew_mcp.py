@@ -146,7 +146,7 @@ def _task_line(t: dict) -> str:
 
 
 def start(key: str, repo: str | None = None, base: str | None = None) -> str:
-    _paired()
+    key = cd.hub_key(_paired(), key)
     notes = []
     try:
         run_cli(["claim", key])
@@ -178,7 +178,8 @@ def call_tool(name: str, args: dict) -> str:
     if name == "crew_tasks":
         return tasks()
     if name == "crew_claim":
-        cfg, key = _paired(), str(args.get("key") or "")
+        cfg = _paired()
+        key = cd.hub_key(cfg, str(args.get("key") or ""))
         run_cli(["claim", key])
         return f"Đã claim {key} về máy {cfg['machine']}. Mở worktree bằng /crew:start {key}."
     if name == "crew_start":

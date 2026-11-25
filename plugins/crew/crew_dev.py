@@ -133,6 +133,13 @@ def _key(value: str) -> str:
     return value
 
 
+def hub_key(cfg: dict, key: str) -> str:
+    """The hub matches task keys whatever their case; branch and worktree names follow its spelling (t-3 is T-3)."""
+    status, body = api(cfg, "/api/tasks", method="GET")
+    keys = [t.get("key") for t in body.get("tasks") or [] if isinstance(t.get("key"), str)] if status == 200 else []
+    return key if key in keys else next((k for k in keys if k.lower() == key.lower()), key)
+
+
 # ---- hook: filter, queue, send -------------------------------------------------------------------------
 def _real(path: str) -> str:
     return os.path.realpath(path) if path else ""
@@ -364,7 +371,8 @@ def cmd_claim(args) -> None:
     status, body = api(cfg, f"/api/tasks/{_key(args.key)}/claim")
     if status != 200:
         sys.exit(f"Không claim được ({status}): {body.get('detail', '')}")
-    print(f"Đã claim {args.key} về máy {body.get('machine')}. Tiếp theo: crew_dev.py start {args.key}")
+    key = body.get("key") or args.key
+    print(f"Đã claim {key} về máy {body.get('machine')}. Tiếp theo: crew_dev.py start {key}")
 
 
 def _git(args: list, cwd: str, check: bool = True):
@@ -378,8 +386,7 @@ def _git(args: list, cwd: str, check: bool = True):
 
 
 def cmd_start(args) -> None:
-    _need_config()
-    key = _key(args.key)
+    key = hub_key(_need_config(), _key(args.key))
     try:
         _start(key, args.repo or os.getcwd(), args.base)
     except subprocess.CalledProcessError as e:
@@ -422,8 +429,9 @@ def cmd_release(args) -> None:
     status, body = api(cfg, f"/api/tasks/{_key(args.key)}/release")
     if status != 200:
         sys.exit(f"Không nhả được ({status}): {body.get('detail', '')}")
-    update_config(lambda cfg: (cfg.get("worktrees") or {}).pop(args.key, None))
-    print(f"Đã trả {args.key} về hàng chờ. Worktree trên máy vẫn giữ nguyên.")
+    key = body.get("key") or args.key
+    update_config(lambda cfg: (cfg.get("worktrees") or {}).pop(key, None))
+    print(f"Đã trả {key} về hàng chờ. Worktree trên máy vẫn giữ nguyên.")
 
 
 def cmd_login(_args) -> None:

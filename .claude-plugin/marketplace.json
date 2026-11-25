@@ -9,7 +9,7 @@
     {
       "name": "crew",
       "description": "Ghép máy bằng mã từ Slack, xem và nhận task, mở worktree; phiên Claude Code trong worktree crew hiện trên canvas của crew-hub.",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "source": "./plugins/crew",
       "category": "productivity"
     }
