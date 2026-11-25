@@ -445,6 +445,17 @@ def cmd_release(args) -> None:
     print(f"Đã trả {key} về hàng chờ. Worktree trên máy vẫn giữ nguyên.")
 
 
+def cmd_done(args) -> None:
+    cfg = _need_config()
+    status, body = api(cfg, f"/api/tasks/{_key(args.key)}/done", {"note": args.note} if args.note else {})
+    if status != 200:
+        sys.exit(f"Không đóng được ({status}): {body.get('detail', '')}")
+    key = body.get("key") or args.key
+    update_config(lambda cfg: (cfg.get("worktrees") or {}).pop(key, None))
+    print(f"Đã đánh dấu {key} là xong. Worktree trên máy vẫn giữ nguyên." +
+          (f" {body['cancelled_decisions']} quyết định đang chờ của task cũng được huỷ." if body.get("cancelled_decisions") else ""))
+
+
 def cmd_login(_args) -> None:
     cfg = _need_config()
     status, body = api(cfg, "/api/login-codes")
@@ -471,6 +482,9 @@ def main(argv=None) -> int:
     sub.add_parser("uninstall", help="gỡ hook do script này thêm")
     sub.add_parser("claim", help="nhận task trong hàng chờ về máy này").add_argument("key")
     sub.add_parser("release", help="trả task về hàng chờ").add_argument("key")
+    d = sub.add_parser("done", help="đánh dấu task mình đang làm là xong (như /crew done trên Slack)")
+    d.add_argument("key")
+    d.add_argument("--note", help="ghi chú ngắn, vd nhánh đã đẩy")
     s = sub.add_parser("start", help="tạo worktree <repo>/.claude/worktrees/KEY trên nhánh <loại>/KEY "
                                      "(feature, fix hoặc hotfix theo task trên hub)")
     s.add_argument("key")
@@ -484,7 +498,7 @@ def main(argv=None) -> int:
     if args.cmd == "hook":
         return hook_main(sys.stdin, plugin=args.plugin)
     {"install": cmd_install, "uninstall": cmd_uninstall, "claim": cmd_claim, "start": cmd_start,
-     "release": cmd_release, "login": cmd_login, "flush": cmd_flush}[args.cmd](args)
+     "release": cmd_release, "done": cmd_done, "login": cmd_login, "flush": cmd_flush}[args.cmd](args)
     return 0
 
 

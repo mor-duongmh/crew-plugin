@@ -47,6 +47,10 @@ TOOLS = [
          "base": {"type": "string", "description": "nhánh gốc; mặc định nhánh chính của origin"}}}},
     {"name": "crew_release", "description": "Trả task về hàng chờ (worktree trên máy vẫn giữ).",
      "inputSchema": {"type": "object", "required": ["key"], "properties": KEY_PROP}},
+    {"name": "crew_done", "description": "Đánh dấu task mình đang làm là xong trên crew-hub (như /crew done trên Slack). "
+                                         "Chỉ người đang claim task hoặc lead đóng được; worktree trên máy vẫn giữ.",
+     "inputSchema": {"type": "object", "required": ["key"], "properties": {
+         **KEY_PROP, "note": {"type": "string", "description": "ghi chú ngắn, vd nhánh đã đẩy hoặc PR"}}}},
     {"name": "crew_status", "description": "Máy này đã ghép với hub nào, các worktree crew, sự kiện còn chờ gửi.",
      "inputSchema": {"type": "object", "properties": {}}},
 ]
@@ -188,6 +192,10 @@ def call_tool(name: str, args: dict) -> str:
     if name == "crew_release":
         _paired()
         return run_cli(["release", str(args.get("key") or "")])
+    if name == "crew_done":
+        _paired()
+        note = args.get("note")
+        return run_cli(["done", str(args.get("key") or "")] + (["--note", note] if isinstance(note, str) and note else []))
     if name == "crew_status":
         return status()
     raise ToolError(f"không có công cụ {name}")
