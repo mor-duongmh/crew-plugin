@@ -39,7 +39,8 @@ TOOLS = [
      "inputSchema": {"type": "object", "required": ["key"], "properties": KEY_PROP}},
     {"name": "crew_start",
      "description": "Nhận task (nếu còn trong hàng chờ) rồi tạo worktree <repo>/.claude/worktrees/KEY trên nhánh "
-                    "crew/KEY. Chỉ phiên Claude Code làm trong worktree đó mới hiện trên canvas.",
+                    "<loại>/KEY (feature, fix hoặc hotfix theo task). Chỉ phiên Claude Code làm trong worktree đó "
+                    "mới hiện trên canvas.",
      "inputSchema": {"type": "object", "required": ["key"], "properties": {
          **KEY_PROP,
          "repo": {"type": "string", "description": "đường dẫn tuyệt đối tới repo git; mặc định thư mục hiện tại"},

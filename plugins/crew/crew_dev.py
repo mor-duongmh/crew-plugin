@@ -133,11 +133,18 @@ def _key(value: str) -> str:
     return value
 
 
-def hub_key(cfg: dict, key: str) -> str:
-    """The hub matches task keys whatever their case; branch and worktree names follow its spelling (t-3 is T-3)."""
+def hub_task(cfg: dict, key: str) -> dict | None:
+    """The open task the hub lists under this key, whatever its case (t-3 is T-3); None if there is none."""
     status, body = api(cfg, "/api/tasks", method="GET")
-    keys = [t.get("key") for t in body.get("tasks") or [] if isinstance(t.get("key"), str)] if status == 200 else []
-    return key if key in keys else next((k for k in keys if k.lower() == key.lower()), key)
+    found = [t for t in body.get("tasks") or [] if isinstance(t.get("key"), str)] if status == 200 else []
+    return next((t for t in found if t["key"] == key), None) or \
+        next((t for t in found if t["key"].lower() == key.lower()), None)
+
+
+def hub_key(cfg: dict, key: str) -> str:
+    """Branch and worktree names follow the hub's spelling of a key."""
+    task = hub_task(cfg, key)
+    return task["key"] if task else key
 
 
 # ---- hook: filter, queue, send -------------------------------------------------------------------------
@@ -386,23 +393,27 @@ def _git(args: list, cwd: str, check: bool = True):
 
 
 def cmd_start(args) -> None:
-    key = hub_key(_need_config(), _key(args.key))
+    task = hub_task(_need_config(), _key(args.key))
+    if task is None:
+        sys.exit(f"Hub không có task {args.key} đang mở, hoặc không tới được hub.")
     try:
-        _start(key, args.repo or os.getcwd(), args.base)
+        _start(task["key"], task.get("kind") or "feature", args.repo or os.getcwd(), args.base)
     except subprocess.CalledProcessError as e:
         sys.exit(f"git {e.cmd[1]} lỗi: {(e.stderr or '').strip() or e}")
 
 
-def _start(key: str, where: str, base: str | None) -> None:
+def _start(key: str, kind: str, where: str, base: str | None) -> None:
     repo = _git(["rev-parse", "--show-toplevel"], where)
     if not base:
         try:
             base = _git(["symbolic-ref", "--short", "refs/remotes/origin/HEAD"], repo).split("/", 1)[1]
         except (subprocess.CalledProcessError, IndexError):
             base = "main"
-    branch = f"crew/{key}"
     path = os.path.join(repo, ".claude", "worktrees", key)
-    if not os.path.exists(path):
+    if os.path.exists(path):
+        branch = _git(["rev-parse", "--abbrev-ref", "HEAD"], path)   # chosen by an earlier start
+    else:
+        branch = f"{kind}/{key}"   # feature/KEY, fix/KEY or hotfix/KEY, from the task's kind on the hub
         _git(["fetch", "origin", base], repo)
         has_branch = _git(["rev-parse", "--verify", "--quiet", "refs/heads/" + branch], repo, check=False).returncode == 0
         _git(["worktree", "add", path, branch] if has_branch else ["worktree", "add", "-b", branch, path, "origin/" + base], repo)
@@ -460,7 +471,8 @@ def main(argv=None) -> int:
     sub.add_parser("uninstall", help="gỡ hook do script này thêm")
     sub.add_parser("claim", help="nhận task trong hàng chờ về máy này").add_argument("key")
     sub.add_parser("release", help="trả task về hàng chờ").add_argument("key")
-    s = sub.add_parser("start", help="tạo worktree <repo>/.claude/worktrees/KEY trên nhánh crew/KEY")
+    s = sub.add_parser("start", help="tạo worktree <repo>/.claude/worktrees/KEY trên nhánh <loại>/KEY "
+                                     "(feature, fix hoặc hotfix theo task trên hub)")
     s.add_argument("key")
     s.add_argument("--repo")
     s.add_argument("--base")
